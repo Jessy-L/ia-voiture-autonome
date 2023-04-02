@@ -23,9 +23,9 @@ class Car {
 
     // update de la voiture
 
-    update() {
+    update(roadBorders) {
         this.#move()
-        this.sensor.update();
+        this.sensor.update(roadBorders);
     }
 
 
