@@ -2,7 +2,7 @@ class Car {
 
     // constructeur de la voiture
     // prend en paramètre la position x, y, la largeur et la hauteur
-    constructor(x,y,width,height) {
+    constructor(x,y,width,height, controlsType, maxSpeed = 3) {
         this.x = x;
         this.y = y;
         this.width = width;
@@ -11,21 +11,102 @@ class Car {
         // vitesse de la voiture
         this.speed = 0;
         this.acceleration = 0.2;
-        this.maxSpeed = 3;
+        this.maxSpeed = maxSpeed;
         this.friction = 0.05;
         this.angle = 0;
+        this.damage = false;
 
-        // on crée les capteur
-        this.sensor = new Sensor(this);
+        this.useBrain = controlsType == "IA"
+
+        if(controlsType != "BOT") {
+            // on crée les capteur
+            this.sensor = new Sensor(this);
+            this.brain = new NeuralNetwork(
+                // nombre de neurones d'entrée
+                // 1 neurone par capteur
+                // 4 => valeur de sortie
+                [this.sensor.rayCount, 6, 4]
+            )
+        }
+
         // on crée les contrôles
-        this.controls = new Controls();
+        this.controls = new Controls(controlsType);
     }
 
     // update de la voiture
 
-    update(roadBorders) {
-        this.#move()
-        this.sensor.update(roadBorders);
+    update(roadBorders, traffic) {
+        if(!this.damaged){
+            this.#move()
+            this.polygon = this.#createPolygon();
+            this.damaged = this.#assessDamage(roadBorders, traffic);
+        }
+
+        if(this.sensor){
+            this.sensor.update(roadBorders, traffic);
+            const offsets = this.sensor.readings.map(
+                // s => sensor
+                s => s == null ? 0 : 1 - s.offset
+            )
+            const outputs = NeuralNetwork.feedForward(offsets, this.brain);
+            
+            // console.log(outputs);
+
+            if (this.useBrain){
+                this.controls.forward = outputs[0];
+                this.controls.reverse = outputs[1];
+                this.controls.left = outputs[2];
+                this.controls.right = outputs[3];
+            }
+        }
+    }
+
+    #assessDamage(roadBorders, traffic) {
+        // on vérifie si la voiture est en collision avec les bordures
+        for (let i = 0; i < roadBorders.length; i++) {
+            if(polysIntersect(this.polygon, roadBorders[i])) {
+                return true;
+            }
+        }
+        // on vérifie si la voiture est en collision avec le traffic
+        for (let i = 0; i < traffic.length; i++) {
+            if(polysIntersect(this.polygon, traffic[i].polygon)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+
+    #createPolygon() {
+        const points = [];
+        // on calcule le rayon du cercle englobant la voiture
+        const rad = Math.hypot(this.width, this.height) / 2;
+        // on calcule l'angle entre le centre de la voiture
+        const alpha = Math.atan2(this.width, this.height);
+        // on calcule les points du polygone
+        points.push({
+            x: this.x - Math.sin(this.angle - alpha) * rad,
+            y: this.y - Math.cos(this.angle - alpha) * rad,
+        });
+    
+        points.push({
+            x: this.x - Math.sin(this.angle + alpha) * rad,
+            y: this.y - Math.cos(this.angle + alpha) * rad,
+        });
+
+        points.push({
+            x: this.x - Math.sin(Math.PI + this.angle - alpha) * rad,
+            y: this.y - Math.cos(Math.PI + this.angle - alpha) * rad,
+        });
+    
+        points.push({
+            x: this.x - Math.sin(Math.PI + this.angle + alpha) * rad,
+            y: this.y - Math.cos(Math.PI + this.angle + alpha) * rad,
+        });
+
+        return points;
+    
     }
 
 
@@ -101,33 +182,35 @@ class Car {
         
         // on affiche les infos
         // this.#displayInfos();
-        console.log("Angle          : " + (this.angle).toFixed(2));
-        console.log("Vitesse (Px/s) : " + (this.speed).toFixed(2));
+        // console.log("Angle          : " + (this.angle).toFixed(2));
+        // console.log("Vitesse (Px/s) : " + (this.speed).toFixed(2));
     }
     
-    draw(ctx) {
+    draw(ctx, color, drawSensor = false) {
 
-        // on sauvegarde le contexte
-        ctx.save();
+        if (this.damaged) {
+            ctx.fillStyle = "red";
+        } else {
+            ctx.fillStyle = color;
+        }
 
-        // on translate le contexte
-        ctx.translate(this.x, this.y);
-
-        // on tourne le contexte
-        ctx.rotate(-this.angle);
-
-        // on dessine la voiture
         ctx.beginPath();
-        ctx.rect(
-            -this.width / 2,
-            -this.height / 2,
-            this.width,
-            this.height
-        );
+        // on dessine le polygone
+        // on commence par le premier point
+        // on dessine une ligne jusqu'au premier point
+        // on dessine une ligne jusqu'au deuxième point
+        // on dessine une ligne jusqu'au troisième point
+        // on dessine une ligne jusqu'au quatrième point
+        // on ferme le polygone
+        ctx.moveTo(this.polygon[0].x, this.polygon[0].y);
+        for (let i = 1; i < this.polygon.length; i++) {
+            ctx.lineTo(this.polygon[i].x, this.polygon[i].y);
+        }
         ctx.fill();
-        ctx.restore();
 
-        // on dessine les capteurs
-        this.sensor.draw(ctx);
+        if (this.sensor && drawSensor) {
+            // on dessine les capteurs
+            this.sensor.draw(ctx);
+        }
     }
 }

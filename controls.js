@@ -1,17 +1,24 @@
 class Controls {
 
-    constructor() {
+    constructor(type) {
         this.forward = false;
         this.reverse = false;
         this.left = false;
         this.right = false;
 
-        this.#addkeyboradListeners();
+        switch (type) {
+            case 'KEYS':
+                this.#addkeyboradListeners();
+                break;
+            case 'BOT':
+                this.forward = true;
+                break;
+        }
     }
 
     // configuration des touches
     #addkeyboradListeners() {
-        document.addEventListener('keydown', (event) => {
+        document.onkeydown=(event) => {
             switch (event.key) {
                 case 'z':
                     this.forward = true;
@@ -27,9 +34,9 @@ class Controls {
                     break;
             }
             // console.table(this);
-        });
+        };
 
-        document.addEventListener('keyup', (event) => {
+        document.onkeyup = (event) => {
             switch (event.key) {
                 case 'z':
                     this.forward = false;
@@ -45,6 +52,6 @@ class Controls {
                     break;
             }
             // console.table(this);
-        });
+        };
     }
 }

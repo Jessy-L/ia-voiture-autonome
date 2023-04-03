@@ -10,17 +10,23 @@ class Sensor{
         this.readings = [];
     }
 
-    update(roadBorders){
+    update(roadBorders, traffic){
         this.#castRays();
 
         // on récupère les lectures
         this.readings = [];
         for (let i = 0; i < this.rays.length; i++) {
-            this.readings.push(this.#getReading(this.rays[i], roadBorders));
+            this.readings.push(
+                this.#getReading(
+                    this.rays[i], 
+                    roadBorders,
+                    traffic
+                )
+            );
         }
     }
 
-    #getReading(ray, roadBorders){
+    #getReading(ray, roadBorders, traffic){
         let touches = [];
         for (let i = 0; i < roadBorders.length; i++) {
             
@@ -35,6 +41,21 @@ class Sensor{
             // on ajoute les points d'intersection au tableau
             if (touch) {
                 touches.push(touch);
+            }
+        }
+
+        for (let i = 0; i < traffic.length; i++) {
+            const poly = traffic[i].polygon;
+            for (let j = 0; j < poly.length; j++) {
+                const value = getLineIntersection(
+                    ray[0],
+                    ray[1],
+                    poly[j],
+                    poly[(j + 1) % poly.length]
+                );
+                if (value) {
+                    touches.push(value);
+                }
             }
         }
 
